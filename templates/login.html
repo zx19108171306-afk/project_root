@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>AI赋能动态安全认证系统</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f4f7f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 380px; text-align: center; }
+        h2 { color: #2c3e50; margin-bottom: 25px; font-weight: 500; }
+        .input-group { margin-bottom: 20px; text-align: left; }
+        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; transition: 0.3s; }
+        input:focus { border-color: #3498db; outline: none; box-shadow: 0 0 8px rgba(52,152,219,0.2); }
+        button { width: 100%; padding: 12px; background: #2c3e50; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; transition: 0.3s; }
+        button:hover { background: #34495e; }
+        #risk-box { margin-top: 25px; display: none; padding: 15px; border-radius: 6px; font-size: 14px; }
+        .progress-container { width: 100%; background-color: #eee; border-radius: 10px; margin-top: 10px; }
+        .progress-bar { height: 10px; border-radius: 10px; width: 0%; transition: width 0.5s; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h2>身份认证中心</h2>
+        <div class="input-group">
+            <label style="font-size: 12px; color: #666;">账号</label>
+            <input type="text" value="zhangzixin" disabled style="background: #f9f9f9;">
+        </div>
+        <div class="input-group">
+            <label style="font-size: 12px; color: #666;">动态加固密码</label>
+            <input type="password" id="password" placeholder="请输入密码进行语义及行为比对">
+        </div>
+        <button onclick="submitLogin()" id="loginBtn">安全登录</button>
+
+        <div id="risk-box">
+            <div id="status-text"></div>
+            <div class="progress-container">
+                <div id="risk-bar" class="progress-bar"></div>
+            </div>
+            <div style="margin-top: 5px; font-weight: bold;">综合风险指数: <span id="risk-val">0</span></div>
+        </div>
+    </div>
+
+    <script>
+        let timings = [];
+        let lastTime = 0;
+        const pwdInput = document.getElementById('password');
+
+        pwdInput.addEventListener('keydown', () => {
+            const now = performance.now();
+            if (lastTime !== 0) timings.push(now - lastTime);
+            lastTime = now;
+        });
+
+        async function submitLogin() {
+            const btn = document.getElementById('loginBtn');
+            const riskBox = document.getElementById('risk-box');
+            btn.innerText = "AI 评估中...";
+            
+            // 特征预处理：对齐 INPUT_DIM (31)
+            let features = [...timings].slice(0, 31);
+            while(features.length < 31) features.push(0);
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ password: pwdInput.value, features: features })
+                });
+                const result = await response.json();
+
+                // 更新界面
+                riskBox.style.display = 'block';
+                document.getElementById('status-text').innerText = result.msg;
+                document.getElementById('risk-val').innerText = result.risk;
+                
+                const bar = document.getElementById('risk-bar');
+                bar.style.width = result.risk + '%';
+
+                // 颜色控制
+                riskBox.className = '';
+                if(result.risk < 35) { riskBox.classList.add('success'); bar.style.backgroundColor = '#28a745'; }
+                else if(result.risk < 75) { riskBox.classList.add('warning'); bar.style.backgroundColor = '#ffc107'; }
+                else { riskBox.classList.add('danger'); bar.style.backgroundColor = '#dc3545'; }
+
+            } catch (e) {
+                alert("后端服务连接失败，请检查模型及API状态");
+            } finally {
+                btn.innerText = "安全登录";
+            }
+        }
+    </script>
+</body>
+</html>
